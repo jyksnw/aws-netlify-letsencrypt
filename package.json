@@ -26,7 +26,7 @@
     "logs": "sls logs -f renew_certificate -l",
     "package": "semistandard --fix && sls package",
     "package-prod": "semistandard --fix && sls package -s production",
-    "test": "semistandard --fix && depcheck . --ignores='husky',
+    "test": "semistandard --fix && depcheck . --ignores='husky'",
     "snyk-protect": "snyk protect",
     "prepublish": "npm run snyk-protect"
   },
