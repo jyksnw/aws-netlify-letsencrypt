@@ -1,0 +1,52 @@
+service: aws-netlify-letsencryptfi
+
+resources:
+  Resources:
+    S3BucketAcmeBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${file(.yaml):AWS_S3_ACME_BUCKET}
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  memorySize: 256
+  timeout: 60 # Since it could take some time for the DNS changes to take effect we need to set a timeout of 60 seconds
+  stage: dev
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - s3:*
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - acm:*
+      Resource: "*"
+
+package:
+  exclude:
+    - .git/**
+    - .travis.yml
+    - .yaml
+    - yarn.lock
+    - node_modules/**/test/**
+    - node_modules/**/*.md
+    - node_modules/**/*.txt
+
+functions:
+  renew_certificate:
+    handler: handler.renew_certificate
+    events:
+        - schedule:
+            name: "LetsEncryptCertificateRenewalSchedule"
+            description: "Checks if the Netlify managed domain needs an updated LetsEncrypt SSL certificate"
+            rate: rate(1 day)
+    environment:
+      NETLIFY_CLIENT_ID: ${file(.yaml):NETLIFY_CLIENT_ID}
+      NETLIFY_CLIENT_SECRET: ${file(.yaml):NETLIFY_CLIENT_SECRET}
+      NETLIFY_DNS_ZONE_NAME: ${file(.yaml):NETLIFY_DNS_ZONE_NAME}
+      AWS_S3_ACME_BUCKET: ${file(.yaml):AWS_S3_ACME_BUCKET}
+      ACME_EMAIL_ADDRESS: ${file(.yaml):ACME_EMAIL_ADDRESS}
+      ACME_DOMAIN_NAME: ${file(.yaml):ACME_DOMAIN_NAME}
+      ACME_TEST: ${file(.yaml):ACME_TEST, "true"}

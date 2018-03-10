@@ -1,0 +1,18 @@
+{
+  "name": "aws-netlify-ssl",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.206.0",
+    "bluebird": "^3.5.1",
+    "dotyaml": "^1.0.0",
+    "letiny": "https://github.com/anatolsommer/letiny.git",
+    "moment": "^2.21.0",
+    "netlify": "^1.2.0",
+    "request": "^2.83.0"
+  },
+  "devDependencies": {
+    "semistandard": "^12.0.1"
+  }
+}

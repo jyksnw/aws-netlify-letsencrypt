@@ -1,0 +1,7 @@
+NETLIFY_CLIENT_ID: ""
+NETLIFY_CLIENT_SECRET: ""
+NETLIFY_DNS_ZONE_NAME: "example.com"
+AWS_S3_ACME_BUCKET: "MyAcmeBucket"
+ACME_EMAIL_ADDRESS: "example@example.com"
+ACME_DOMAIN_NAME: "api.example.com"
+ACME_TEST: "true"
