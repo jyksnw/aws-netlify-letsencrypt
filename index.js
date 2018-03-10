@@ -1,5 +1,5 @@
-const Pledge = require('bluebird');
-const handler = require('./handler');
+const Pledge = require('bluebird')
+const handler = require('./handler')
 
 /**
  * Attempts to generate or renew a Let's Encrypt Certificate. Any generated or renewed certificates
@@ -11,24 +11,24 @@ const renewCertificate = callback => {
   return new Pledge((resolve, reject) => {
     handler.renew_certificate(null, null, (err, status) => {
       if (err) {
-        callback ? callback(err, null) : reject(err);
+        callback ? callback(err, null) : reject(err)
       } else {
-        callback ? callback(null, status) : resolve(status);
+        callback ? callback(null, status) : resolve(status)
       }
-    });
-  });
-};
+    })
+  })
+}
 
-module.exports = renewCertificate;
+module.exports = renewCertificate
 
 if (require.main === module) {
   renewCertificate((err, status) => {
     if (err) {
-      console.log(err);
+      console.log(err)
     } else {
-      console.log(status);
+      console.log(status)
     }
-  });
+  })
 }
 
 /**
