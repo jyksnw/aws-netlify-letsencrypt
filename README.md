@@ -2,6 +2,8 @@
 # AWS Netlify Let's Encrypt SSL Renewal
 > Standalone and Lambda compatible tool for obtaining and renewing Let's Encrypt SSL certificates for Netlify managed domains
 
+[![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/843d0c2b738f4048a7c0a82e52dffe98)](https://www.codacy.com/app/jyksnw/aws-netlify-letsencrypt?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jyksnw/aws-netlify-letsencrypt&amp;utm_campaign=Badge_Grade) [![Known Vulnerabilities](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt/badge.svg)](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt)
+
 This project was created as a means to easily obtain and renew Let's Encrypt SSL certificates for various AWS service endpoints where DNS ALIAS records are managed by a Netlify DNS Zone.
 
 ## Developing
@@ -32,80 +34,67 @@ aws configure
 [Serverless](https://serverless.com/)
 ```shell
 npm i serverless -g
+
+serverless login
 ```
 
 
 ### Setting up Dev
 
-Here's a brief intro about what a developer must do in order to start developing
-the project further:
+To get setup for development you should ensure that the [AWS Command Line Interface](https://aws.amazon.com/cli/) has been installed and configured.
 
 ```shell
-git clone https://github.com/your/your-project.git
-cd your-project/
-packagemanager install
+git clone https://github.com/jyksnw/aws-netlify-letsencrypt.git
+cd aws-netlify-letsencrypt/
+yarn install
+mv .yaml.example .yaml
+$EDITOR .yaml
 ```
-
-And state what happens step-by-step. If there is any virtual environment, local server or database feeder needed, explain here.
+The `.yaml` file should be update per the [configuration](#Configuration) section.
 
 ### Building
 
-If your project needs some additional steps for the developer to build the
-project after some code changes, state them here. for example:
+You can build and package as a lambda function be running:
 
 ```shell
-./configure
-make
-make install
+npm run package
 ```
 
-Here again you should state what actually happens when the code above gets
-executed.
+This will ensure that all code is formatted correctly and then generates the packaged function files and places them in `.serverless/`
 
 ### Deploying / Publishing
-give instructions on how to build and release a new version
-In case there's some step you have to take that publishes this project to a
-server, this is the right time to state it.
+
+You can deploy the serverless function, assuming that you have setup your AWS account and serverless, by running:
 
 ```shell
-packagemanager deploy your-project -s server.com -u username -p password
+npm run deploy
 ```
 
-And again you'd need to tell what the previous code actually does.
+This will ensure that all code is formatted correctly and will then build and deploy the function to AWS.
 
 ## Versioning
 
-We can maybe use [SemVer](http://semver.org/) for versioning. For the versions available, see the [link to tags on this repository](/tags).
-
+[SemVer](http://semver.org/) is used for versioning. For the versions available, see the [releases](https://github.com/jyksnw/aws-netlify-letsencrypt/releases).
 
 ## Configuration
 
-Here you should write what are all of the configurations a user can enter when
-using the project.
-
+| Environmental Variable | Use |
+| ---------------------- | --- |
+| NETLIFY_CLIENT_ID | The [Netlify OAuth Application](https://app.netlify.com/account/applications) Client ID |
+| NETLIFY_CLIENT_SECRET | The [Netlify OAuth Application](https://app.netlify.com/account/applications) Secret |
+| NETLIFY_DNS_ZONE_NAME | The name of the Netlify DNS Zone |
+| AWS_S3_ACME_BUCKET | The name of the S3 bucket used to store generated certificates |
+| ACME_EMAIL_ADDRESS | The email address to use for the certificate registration |
+| ACME_DOMAIN_NAME | The domain that the SSL certificate is to be issued for. Currently can only be a single domain and must be either the primary domain or a sub-domain of the primary domain |
+| ACME_TEST | If set to `true` (default) than the [Let's Encrypt Staging environment](https://letsencrypt.org/docs/staging-environment/) is used. Only set this to `false` once all testing has been completed to avoid having your domain reach it's rate limit |
 ## Tests
 
-Describe and show how to run the tests with code examples.
-Explain what these tests test and why.
-
-```shell
-Give an example
-```
+>TBD
 
 ## Style guide
 
-Explain your code style and show how to check it.
-
-## Api Reference
-
-If the api is external, link to api documentation. If not describe your api including authentication methods as well as explaining all the endpoints with their required parameters.
-
-
-## Database
-
-Explaining what database (and version) has been used. Provide download links.
-Documents your database design and schemas, relations etc... 
+[![js-semistandard-style](https://cdn.rawgit.com/flet/semistandard/master/badge.svg)](https://github.com/Flet/semistandard)
 
 ## Licensing
 
-State what the license is and how to find the text version of the license.
+MIT
