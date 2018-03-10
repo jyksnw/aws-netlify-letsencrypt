@@ -84,6 +84,7 @@ This will ensure that all code is formatted correctly and will then build and de
 | NETLIFY_CLIENT_SECRET | The [Netlify OAuth Application](https://app.netlify.com/account/applications) Secret |
 | NETLIFY_DNS_ZONE_NAME | The name of the Netlify DNS Zone |
 | AWS_S3_ACME_BUCKET | The name of the S3 bucket used to store generated certificates |
+| AWS_SNS_TOPIC | The SNS Topic Arn on which to dispatch the new certificate Arn. This will be set by the serverless deploy for non-local use |
 | ACME_EMAIL_ADDRESS | The email address to use for the certificate registration |
 | ACME_DOMAIN_NAME | The domain that the SSL certificate is to be issued for. Currently can only be a single domain and must be either the primary domain or a sub-domain of the primary domain |
 | ACME_TEST | If set to `true` (default) than the [Let's Encrypt Staging environment](https://letsencrypt.org/docs/staging-environment/) is used. Only set this to `false` once all testing has been completed to avoid having your domain reach it's rate limit |

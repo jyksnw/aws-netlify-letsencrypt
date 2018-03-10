@@ -14,6 +14,7 @@ const NETLIFY_CLIENT_SECRET = process.env.NETLIFY_CLIENT_SECRET;
 const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME;
 
 const AWS_S3_ACME_BUCKET = process.env.AWS_S3_ACME_BUCKET;
+const AWS_SNS_TOPIC = process.env.AWS_SNS_TOPIC;
 
 const ACME_EMAIL_ADDRESS = process.env.ACME_EMAIL_ADDRESS;
 const ACME_DOMAIN_NAME = process.env.ACME_DOMAIN_NAME;
@@ -28,6 +29,7 @@ AWS.config.setPromisesDependency(Pledge);
 
 const s3 = new AWS.S3();
 const acm = new AWS.ACM();
+const sns = new AWS.SNS();
 
 const moment = require('moment');
 const letiny = require('letiny');
@@ -342,9 +344,16 @@ module.exports.renew_certificate = (event, context, callback) => {
                                   console.log('ERROR', err)
                                 );
 
-                                resolve(
-                                  'Certificate generated and uploaded to AWS'
-                                );
+                                let params = {
+                                  Message: `${data.arn.CertificateArn}`,
+                                  TopicArn: AWS_SNS_TOPIC
+                                };
+
+                                sns.publish(params).promise()
+                                  .catch(err => console.log('ERROR', err))
+                                  .finally(() => resolve(
+                                    'Certificate generated and uploaded to AWS'
+                                  ));
                               })
                               .catch(err => {
                                 console.log('ERROR', err);

@@ -6,6 +6,10 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${file(.yaml):AWS_S3_ACME_BUCKET}
+    SNSCertificateTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: "NewLECertificateTopic"
 
 provider:
   name: aws
@@ -22,6 +26,10 @@ provider:
     - Effect: "Allow"
       Action:
         - acm:*
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - sns:*
       Resource: "*"
 
 package:
@@ -47,6 +55,8 @@ functions:
       NETLIFY_CLIENT_SECRET: ${file(.yaml):NETLIFY_CLIENT_SECRET}
       NETLIFY_DNS_ZONE_NAME: ${file(.yaml):NETLIFY_DNS_ZONE_NAME}
       AWS_S3_ACME_BUCKET: ${file(.yaml):AWS_S3_ACME_BUCKET}
+      AWS_SNS_TOPIC:
+        Ref: SNSCertificateTopic
       ACME_EMAIL_ADDRESS: ${file(.yaml):ACME_EMAIL_ADDRESS}
       ACME_DOMAIN_NAME: ${file(.yaml):ACME_DOMAIN_NAME}
       ACME_TEST: ${file(.yaml):ACME_TEST, "true"}
