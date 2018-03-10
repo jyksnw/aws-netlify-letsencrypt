@@ -22,6 +22,7 @@
   "scripts": {
     "run": "node index.js",
     "deploy": "semistandard --fix && sls deploy -v",
+    "re-deploy": "semistandard --fix && sls deploy function -f renew_certificate",
     "invoke": "sls invoke -f renew_certificate -l",
     "logs": "sls logs -f renew_certificate -l",
     "package": "semistandard --fix && sls package",
