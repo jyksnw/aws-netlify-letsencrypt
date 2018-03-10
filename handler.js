@@ -87,7 +87,8 @@ function loadTempDirectoryFromBucket (bucket, files) {
       return new Pledge((resolve, reject) => {
         getBucketFile(bucket, file)
           .then(data => {
-            fs.writeFile('/tmp/' + file, data, 'utf8', err => {
+            let f = '/tmp/' + file;
+            fs.writeFile(f, data, 'utf8', err => {
               if (err) {
                 reject(err);
               } else {
@@ -111,9 +112,10 @@ function dumpTempDirectoryToBucket (bucket, files) {
   return Pledge.all(
     files.map(file => {
       return new Pledge((resolve, reject) => {
-        fs.stat('/tmp/' + file, (err, stats) => {
+        let f = '/tmp/' + file;
+        fs.stat(f, (err, stats) => {
           if (!err && stats.isFile()) {
-            fs.readFile('/tmp/' + file, (err, data) => {
+            fs.readFile(f, (err, data) => {
               if (err) {
                 reject(err);
               } else {
@@ -135,9 +137,10 @@ function cleanupTempDirectory (files) {
   return Pledge.all(
     files.map(file => {
       return new Pledge((resolve, reject) => {
-        fs.stat('/tmp/' + file, (err, stats) => {
+        let f = '/tmp/' + file;
+        fs.stat(f, (err, stats) => {
           if (!err && stats.isFile()) {
-            fs.unlink('/tmp/' + file, err => {
+            fs.unlink(f, err => {
               if (err) {
                 reject(err);
               } else {
@@ -302,12 +305,7 @@ function renewCertificate (zone) {
   });
 }
 
-process.on('uncaughtException', function (err) {
-  console.log(err);
-});
-
 module.exports.renew_certificate = (event, context, callback) => {
-  let start = moment.now();
   let renew = new Pledge((resolve, reject) => {
     netlify
       .authorizeFromCredentials()
@@ -389,6 +387,5 @@ module.exports.renew_certificate = (event, context, callback) => {
 
   renew
     .then(status => callback(null, status))
-    .catch(err => callback(err, 'ERROR'))
-    .finally(() => console.log('Finished', moment.now() - start, 'ms'));
+    .catch(err => callback(err, 'ERROR'));
 };

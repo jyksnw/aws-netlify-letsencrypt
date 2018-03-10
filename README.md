@@ -2,6 +2,8 @@
 # AWS Netlify Let's Encrypt SSL Renewal
 > Standalone and Lambda compatible tool for obtaining and renewing Let's Encrypt SSL certificates for Netlify managed domains
 
+[![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/843d0c2b738f4048a7c0a82e52dffe98)](https://www.codacy.com/app/jyksnw/aws-netlify-letsencrypt?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jyksnw/aws-netlify-letsencrypt&amp;utm_campaign=Badge_Grade) [![Known Vulnerabilities](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt/badge.svg)](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt)
+
 This project was created as a means to easily obtain and renew Let's Encrypt SSL certificates for various AWS service endpoints where DNS ALIAS records are managed by a Netlify DNS Zone.
 
 ## Developing
@@ -32,21 +34,20 @@ aws configure
 [Serverless](https://serverless.com/)
 ```shell
 npm i serverless -g
+
+serverless login
 ```
 
 
 ### Setting up Dev
 
-Here's a brief intro about what a developer must do in order to start developing
-the project further:
+To get setup for development you should ensure that the [AWS Command Line Interface](https://aws.amazon.com/cli/) has been installed and configured.
 
 ```shell
-git clone https://github.com/your/your-project.git
-cd your-project/
-packagemanager install
+git clone https://github.com/jyksnw/aws-netlify-letsencrypt.git
+cd aws-netlify-letsencrypt/
+yarn install
 ```
-
-And state what happens step-by-step. If there is any virtual environment, local server or database feeder needed, explain here.
 
 ### Building
 
@@ -85,27 +86,12 @@ using the project.
 
 ## Tests
 
-Describe and show how to run the tests with code examples.
-Explain what these tests test and why.
-
-```shell
-Give an example
-```
+>TBD
 
 ## Style guide
 
-Explain your code style and show how to check it.
-
-## Api Reference
-
-If the api is external, link to api documentation. If not describe your api including authentication methods as well as explaining all the endpoints with their required parameters.
-
-
-## Database
-
-Explaining what database (and version) has been used. Provide download links.
-Documents your database design and schemas, relations etc... 
+[![js-semistandard-style](https://cdn.rawgit.com/flet/semistandard/master/badge.svg)](https://github.com/Flet/semistandard)
 
 ## Licensing
 
-State what the license is and how to find the text version of the license.
+MIT

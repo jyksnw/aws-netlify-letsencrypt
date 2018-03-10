@@ -10,8 +10,8 @@ resources:
 provider:
   name: aws
   runtime: nodejs6.10
-  memorySize: 256
-  timeout: 60 # Since it could take some time for the DNS changes to take effect we need to set a timeout of 60 seconds
+  memorySize: 512
+  timeout: 90 # Since it could take some time for the DNS changes to take effect we need to set an increased timeout
   stage: dev
   region: us-east-1
   iamRoleStatements:
