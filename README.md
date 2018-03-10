@@ -2,7 +2,7 @@
 # AWS Netlify Let's Encrypt SSL Renewal
 > Standalone and Lambda compatible tool for obtaining and renewing Let's Encrypt SSL certificates for Netlify managed domains
 
-[![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/843d0c2b738f4048a7c0a82e52dffe98)](https://www.codacy.com/app/jyksnw/aws-netlify-letsencrypt?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jyksnw/aws-netlify-letsencrypt&amp;utm_campaign=Badge_Grade) [![Known Vulnerabilities](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt/badge.svg)](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt)
+[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/843d0c2b738f4048a7c0a82e52dffe98)](https://www.codacy.com/app/jyksnw/aws-netlify-letsencrypt?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jyksnw/aws-netlify-letsencrypt&amp;utm_campaign=Badge_Grade) [![Known Vulnerabilities](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt/badge.svg)](https://snyk.io/test/github/jyksnw/aws-netlify-letsencrypt)
 
 This project was created as a means to easily obtain and renew Let's Encrypt SSL certificates for various AWS service endpoints where DNS ALIAS records are managed by a Netlify DNS Zone.
 
@@ -94,7 +94,7 @@ This will ensure that all code is formatted correctly and will then build and de
 
 ## Style guide
 
-[![js-semistandard-style](https://cdn.rawgit.com/flet/semistandard/master/badge.svg)](https://github.com/Flet/semistandard)
+[![js-standard-style](https://cdn.rawgit.com/standard/standard/master/badge.svg)](http://standardjs.com)
 
 ## Licensing
 

@@ -1,43 +1,43 @@
-'use strict';
+'use strict'
 
 if (process.env.NODE_ENV !== 'production') {
-  require('dotyaml')();
+  require('dotyaml')()
 }
 
 // Set the AWS_REGION for local testing
 if (!process.env.AWS_REGION) {
-  process.env.AWS_REGION = 'us-east-1';
+  process.env.AWS_REGION = 'us-east-1'
 }
 
-const NETLIFY_CLIENT_ID = process.env.NETLIFY_CLIENT_ID;
-const NETLIFY_CLIENT_SECRET = process.env.NETLIFY_CLIENT_SECRET;
-const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME;
+const NETLIFY_CLIENT_ID = process.env.NETLIFY_CLIENT_ID
+const NETLIFY_CLIENT_SECRET = process.env.NETLIFY_CLIENT_SECRET
+const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME
 
-const AWS_S3_ACME_BUCKET = process.env.AWS_S3_ACME_BUCKET;
-const AWS_SNS_TOPIC = process.env.AWS_SNS_TOPIC;
+const AWS_S3_ACME_BUCKET = process.env.AWS_S3_ACME_BUCKET
+const AWS_SNS_TOPIC = process.env.AWS_SNS_TOPIC
 
-const ACME_EMAIL_ADDRESS = process.env.ACME_EMAIL_ADDRESS;
-const ACME_DOMAIN_NAME = process.env.ACME_DOMAIN_NAME;
-const ACME_TEST = process.env.ACME_TEST;
+const ACME_EMAIL_ADDRESS = process.env.ACME_EMAIL_ADDRESS
+const ACME_DOMAIN_NAME = process.env.ACME_DOMAIN_NAME
+const ACME_TEST = process.env.ACME_TEST
 
-const fs = require('fs');
-const dns = require('dns');
+const fs = require('fs')
+const dns = require('dns')
 
-const AWS = require('aws-sdk');
-const Pledge = require('bluebird');
-AWS.config.setPromisesDependency(Pledge);
+const AWS = require('aws-sdk')
+const Pledge = require('bluebird')
+AWS.config.setPromisesDependency(Pledge)
 
-const s3 = new AWS.S3();
-const acm = new AWS.ACM();
-const sns = new AWS.SNS();
+const s3 = new AWS.S3()
+const acm = new AWS.ACM()
+const sns = new AWS.SNS()
 
-const moment = require('moment');
-const letiny = require('letiny');
-const request = require('request');
+const moment = require('moment')
+const letiny = require('letiny')
+const request = require('request')
 const netlify = require('netlify').createClient({
   client_id: NETLIFY_CLIENT_ID,
   client_secret: NETLIFY_CLIENT_SECRET
-});
+})
 
 const certFiles = [
   'cert.pem',
@@ -45,27 +45,27 @@ const certFiles = [
   'cacert.pem',
   'accountkey.pem',
   'account.pem'
-];
+]
 
 function getBucketFile (bucket, file) {
   let params = {
     Bucket: bucket,
     Key: file
-  };
+  }
 
   return new Pledge((resolve, reject) => {
-    let headObject = s3.headObject(params).promise();
+    let headObject = s3.headObject(params).promise()
     headObject
       .then(data => {
-        let getObject = s3.getObject(params).promise();
+        let getObject = s3.getObject(params).promise()
         getObject
           .then(data => resolve(data.Body))
-          .catch(err => reject(err));
+          .catch(err => reject(err))
       })
       .catch(err => {
-        reject(err);
-      });
-  });
+        reject(err)
+      })
+  })
 }
 
 function putFile (bucket, fileName, fileData) {
@@ -73,14 +73,14 @@ function putFile (bucket, fileName, fileData) {
     Bucket: bucket,
     Key: fileName,
     Body: fileData
-  };
+  }
 
   return new Pledge((resolve, reject) => {
     s3.putObject(params)
       .promise()
       .then(url => resolve(url))
-      .catch(err => reject(err));
-  });
+      .catch(err => reject(err))
+  })
 }
 
 function loadTempDirectoryFromBucket (bucket, files) {
@@ -89,73 +89,73 @@ function loadTempDirectoryFromBucket (bucket, files) {
       return new Pledge((resolve, reject) => {
         getBucketFile(bucket, file)
           .then(data => {
-            let f = '/tmp/' + file;
+            let f = '/tmp/' + file
             fs.writeFile(f, data, 'utf8', err => {
               if (err) {
-                reject(err);
+                reject(err)
               } else {
-                resolve(null);
+                resolve(null)
               }
-            });
+            })
           })
           .catch(err => {
             if (err && err.code === 'NotFound') {
-              resolve(null);
+              resolve(null)
             } else {
-              reject(err);
+              reject(err)
             }
-          });
-      });
+          })
+      })
     })
-  );
+  )
 }
 
 function dumpTempDirectoryToBucket (bucket, files) {
   return Pledge.all(
     files.map(file => {
       return new Pledge((resolve, reject) => {
-        let f = '/tmp/' + file;
+        let f = '/tmp/' + file
         fs.stat(f, (err, stats) => {
           if (!err && stats.isFile()) {
             fs.readFile(f, (err, data) => {
               if (err) {
-                reject(err);
+                reject(err)
               } else {
                 putFile(bucket, file, data)
                   .then(url => resolve(null))
-                  .catch(err => reject(err));
+                  .catch(err => reject(err))
               }
-            });
+            })
           } else {
-            resolve(null);
+            resolve(null)
           }
-        });
-      });
+        })
+      })
     })
-  );
+  )
 }
 
 function cleanupTempDirectory (files) {
   return Pledge.all(
     files.map(file => {
       return new Pledge((resolve, reject) => {
-        let f = '/tmp/' + file;
+        let f = '/tmp/' + file
         fs.stat(f, (err, stats) => {
           if (!err && stats.isFile()) {
             fs.unlink(f, err => {
               if (err) {
-                reject(err);
+                reject(err)
               } else {
-                resolve(null);
+                resolve(null)
               }
-            });
+            })
           } else {
-            resolve(null);
+            resolve(null)
           }
-        });
-      });
+        })
+      })
     })
-  );
+  )
 }
 
 function removeZoneRecord (token, zoneId, recordId) {
@@ -164,7 +164,7 @@ function removeZoneRecord (token, zoneId, recordId) {
       'https://api.netlify.com/api/v1/dns_zones/' +
       zoneId +
       '/dns_records/' +
-      recordId;
+      recordId
 
     request.delete(
       uri,
@@ -175,47 +175,47 @@ function removeZoneRecord (token, zoneId, recordId) {
       },
       (err, resp, body) => {
         if (err) {
-          reject(err);
+          reject(err)
         } else {
           if (resp.statusCode >= 200 && resp.statusCode < 300) {
-            resolve(resp.statusCode);
+            resolve(resp.statusCode)
           } else {
-            reject(resp.statusMessage);
+            reject(resp.statusMessage)
           }
         }
       }
-    );
-  });
+    )
+  })
 }
 
 function wait (timeout) {
   return new Pledge(resolve => {
     setTimeout(() => {
-      resolve();
-    }, timeout);
-  });
+      resolve()
+    }, timeout)
+  })
 }
 
 function resolveTxtRecord (endpoint) {
   return new Pledge((resolve, reject) => {
-    console.log('Attempting to resolve TXT', endpoint);
+    console.log('Attempting to resolve TXT', endpoint)
     dns.resolveTxt(endpoint, (err, data) => {
       if (err && err.code === dns.NOTFOUND) {
-        console.log('Waiting', 1000, 'ms');
+        console.log('Waiting', 1000, 'ms')
         wait(1000).then(() => {
           resolveTxtRecord(endpoint)
             .then(data => resolve(data))
-            .catch(err => reject(err));
-        });
+            .catch(err => reject(err))
+        })
       } else if (err) {
-        console.log('Error resolving TXT', endpoint, err);
-        reject(err);
+        console.log('Error resolving TXT', endpoint, err)
+        reject(err)
       } else {
-        console.log('Resolved TXT', endpoint);
-        resolve(data);
+        console.log('Resolved TXT', endpoint)
+        resolve(data)
       }
-    });
-  });
+    })
+  })
 }
 
 function checkCertificateRenewal (cert) {
@@ -224,32 +224,32 @@ function checkCertificateRenewal (cert) {
       if (!err && stats.isFile()) {
         fs.readFile(cert, 'utf8', (err, data) => {
           if (err) {
-            reject(err);
+            reject(err)
           } else {
             try {
-              let expirationDate = letiny.getExpirationDate(data);
-              let renewalDate = moment(expirationDate).subtract(30, 'days');
-              let today = moment(new Date());
+              let expirationDate = letiny.getExpirationDate(data)
+              let renewalDate = moment(expirationDate).subtract(30, 'days')
+              let today = moment(new Date())
 
               resolve({
                 renew: today.isSameOrAfter(renewalDate),
                 expirationDate: expirationDate
-              });
+              })
             } catch (err) {
-              reject(err);
+              reject(err)
             }
           }
-        });
+        })
       } else {
-        resolve({ renew: true });
+        resolve({ renew: true })
       }
-    });
-  });
+    })
+  })
 }
 
 function renewCertificate (zone) {
   return new Pledge((resolve, reject) => {
-    let recordId = null;
+    let recordId = null
     letiny.getCert(
       {
         email: ACME_EMAIL_ADDRESS,
@@ -266,7 +266,7 @@ function renewCertificate (zone) {
             ? 'https://acme-staging.api.letsencrypt.org'
             : 'https://acme-v01.api.letsencrypt.org/',
         challenge: function (domain, _, data, done) {
-          let endpoint = '_acme-challenge.' + domain;
+          let endpoint = '_acme-challenge.' + domain
           zone
             .createRecord({
               hostname: endpoint,
@@ -275,36 +275,36 @@ function renewCertificate (zone) {
               ttl: 30
             })
             .then(record => {
-              recordId = record.id;
+              recordId = record.id
 
               resolveTxtRecord(endpoint).then(() => done(null)).catch(err => {
-                done(err);
-              });
+                done(err)
+              })
             })
             .catch(err => {
-              done(err);
-            });
+              done(err)
+            })
         }
       },
       (err, cert, privKey, caCert, accountKey) => {
         if (err) {
-          reject(err);
+          reject(err)
         } else {
           var params = {
             Certificate: cert,
             PrivateKey: privKey,
             CertificateChain: caCert
-          };
+          }
 
           acm
             .importCertificate(params)
             .promise()
             .then(data => resolve({ arn: data, record: recordId }))
-            .catch(err => reject(err));
+            .catch(err => reject(err))
         }
       }
-    );
-  });
+    )
+  })
 }
 
 module.exports.renew_certificate = (event, context, callback) => {
@@ -333,7 +333,7 @@ module.exports.renew_certificate = (event, context, callback) => {
                               token,
                               zone.id,
                               data.record
-                            ).catch(err => console.log('ERROR', err));
+                            ).catch(err => console.log('ERROR', err))
 
                             dumpTempDirectoryToBucket(
                               AWS_S3_ACME_BUCKET,
@@ -342,33 +342,33 @@ module.exports.renew_certificate = (event, context, callback) => {
                               .then(() => {
                                 cleanupTempDirectory(certFiles).catch(err =>
                                   console.log('ERROR', err)
-                                );
+                                )
 
                                 let params = {
                                   Message: `${data.arn.CertificateArn}`,
                                   TopicArn: AWS_SNS_TOPIC
-                                };
+                                }
 
                                 sns.publish(params).promise()
                                   .catch(err => console.log('ERROR', err))
                                   .finally(() => resolve(
                                     'Certificate generated and uploaded to AWS'
-                                  ));
+                                  ))
                               })
                               .catch(err => {
-                                console.log('ERROR', err);
+                                console.log('ERROR', err)
                                 cleanupTempDirectory(certFiles)
                                   .catch(err => console.log('ERROR', err))
-                                  .finally(() => reject(err));
-                              });
+                                  .finally(() => reject(err))
+                              })
                           })
                           .catch(err => {
-                            console.log('ERROR', err);
+                            console.log('ERROR', err)
 
                             cleanupTempDirectory(certFiles)
                               .catch(err => console.log('ERROR', err))
-                              .finally(() => reject(err));
-                          });
+                              .finally(() => reject(err))
+                          })
                       } else {
                         cleanupTempDirectory(certFiles)
                           .catch(err => console.log('ERROR', err))
@@ -376,25 +376,25 @@ module.exports.renew_certificate = (event, context, callback) => {
                             resolve(
                               'Certificate expires on ' + results.expirationDate
                             )
-                          );
+                          )
                       }
                     })
                     .catch(err => {
-                      console.log('ERROR', err);
+                      console.log('ERROR', err)
 
                       cleanupTempDirectory(certFiles)
                         .catch(err => console.log('ERROR', err))
-                        .finally(() => reject(err));
-                    });
-                });
-              });
+                        .finally(() => reject(err))
+                    })
+                })
+              })
           })
-          .catch(err => reject(err));
+          .catch(err => reject(err))
       })
-      .catch(err => reject(err));
-  });
+      .catch(err => reject(err))
+  })
 
   renew
     .then(status => callback(null, status))
-    .catch(err => callback(err, 'ERROR'));
-};
+    .catch(err => callback(err, 'ERROR'))
+}
