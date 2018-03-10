@@ -47,43 +47,46 @@ To get setup for development you should ensure that the [AWS Command Line Interf
 git clone https://github.com/jyksnw/aws-netlify-letsencrypt.git
 cd aws-netlify-letsencrypt/
 yarn install
+mv .yaml.example .yaml
+$EDITOR .yaml
 ```
+The `.yaml` file should be update per the [configuration](#Configuration) section.
 
 ### Building
 
-If your project needs some additional steps for the developer to build the
-project after some code changes, state them here. for example:
+You can build and package as a lambda function be running:
 
 ```shell
-./configure
-make
-make install
+npm run package
 ```
 
-Here again you should state what actually happens when the code above gets
-executed.
+This will ensure that all code is formatted correctly and then generates the packaged function files and places them in `.serverless/`
 
 ### Deploying / Publishing
-give instructions on how to build and release a new version
-In case there's some step you have to take that publishes this project to a
-server, this is the right time to state it.
+
+You can deploy the serverless function, assuming that you have setup your AWS account and serverless, by running:
 
 ```shell
-packagemanager deploy your-project -s server.com -u username -p password
+npm run deploy
 ```
 
-And again you'd need to tell what the previous code actually does.
+This will ensure that all code is formatted correctly and will then build and deploy the function to AWS.
 
 ## Versioning
 
-We can maybe use [SemVer](http://semver.org/) for versioning. For the versions available, see the [link to tags on this repository](/tags).
-
+[SemVer](http://semver.org/) is used for versioning. For the versions available, see the [releases](https://github.com/jyksnw/aws-netlify-letsencrypt/releases).
 
 ## Configuration
 
-Here you should write what are all of the configurations a user can enter when
-using the project.
-
+| Environmental Variable | Use |
+| ---------------------- | --- |
+| NETLIFY_CLIENT_ID | The [Netlify OAuth Application](https://app.netlify.com/account/applications) Client ID |
+| NETLIFY_CLIENT_SECRET | The [Netlify OAuth Application](https://app.netlify.com/account/applications) Secret |
+| NETLIFY_DNS_ZONE_NAME | The name of the Netlify DNS Zone |
+| AWS_S3_ACME_BUCKET | The name of the S3 bucket used to store generated certificates |
+| ACME_EMAIL_ADDRESS | The email address to use for the certificate registration |
+| ACME_DOMAIN_NAME | The domain that the SSL certificate is to be issued for. Currently can only be a single domain and must be either the primary domain or a sub-domain of the primary domain |
+| ACME_TEST | If set to `true` (default) than the [Let's Encrypt Staging environment](https://letsencrypt.org/docs/staging-environment/) is used. Only set this to `false` once all testing has been completed to avoid having your domain reach it's rate limit |
 ## Tests
 
 >TBD
