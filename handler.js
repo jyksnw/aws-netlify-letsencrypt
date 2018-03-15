@@ -52,7 +52,7 @@ function breakPromise () {
 }
 
 function checkExpirationDate (record) {
-  console.log('Checking if certificate needs to be renewed', record.Item.id)
+  console.log('Checking if certificate needs to be renewed', record)
   return new Pledge(resolve => {
     if (record === undefined || !record.Item || !record.Item.expirationDate) {
       // treat a null record as needing to establish a new cert
