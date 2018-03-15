@@ -218,9 +218,7 @@ module.exports.renew_certificate = (event, context, callback) => {
 
         return loadCertificates(domain)
       })
-      .then(() => {
-        return renewCertificate(domain)
-      })
+      .then(() => renewCertificate(domain))
       .then(certificate => {
         console.log(`Uploading ${domain} certificate to Certificate Manager`)
         return acm.importCertificate(certificate).promise()
@@ -242,16 +240,6 @@ module.exports.renew_certificate = (event, context, callback) => {
         ])
       })
       .then(() => copyCertificates(domain))
-      .then(() => unloadCertificates(domain))
-      .then(() => {
-        console.log(`Clearing DNS challenge record for ${domain}`)
-        return netlify.getRecordsByHostname('_acme-challenge.' + domain)
-          .then(records => {
-            return Pledge.all(records.map(record => {
-              return netlify.deleteRecord(record)
-            }))
-          })
-      })
       .catch(err => {
         if (err !== 'break') {
           console.log(err)
@@ -260,9 +248,19 @@ module.exports.renew_certificate = (event, context, callback) => {
       .finally(() => {
         // Sanity check in case we got here after an error
         console.log(`Performing cleanup of ${domain}`)
-        unloadCertificates(domain)
-          .catch(err => console.log(`Could not delete local cache for ${domain}\n`, err))
-          .finally(() => console.log(`Finished handling ${domain}`))
+        netlify.getRecordsByHostname('_acme-challenge.' + domain)
+          .then(records => {
+            console.log(`Clearing DNS challenge record for ${domain}`)
+            return Pledge.all(records.map(record => {
+              return netlify.deleteRecord(record)
+            }))
+          })
+          .catch(err => console.log(`Could not remove DNS challange records for ${domain}\n`, err))
+          .finally(() => {
+            unloadCertificates(domain)
+              .catch(err => console.log(`Could not delete local cache for ${domain}\n`, err))
+              .finally(() => console.log(`Finished handling ${domain}`))
+          })
       })
   })
 }
