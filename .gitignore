@@ -74,3 +74,6 @@ typings/
 
 # SonarLint working directories, configuration files (including credentials)
 .sonarlint/
+
+# Webpack generated files
+.webpack/

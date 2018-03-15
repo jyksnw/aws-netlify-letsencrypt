@@ -1,46 +1,85 @@
 service: aws-netlify-letsencryptfi
 
+plugins:
+  - serverless-webpack
+
+custom:
+  webpack:
+    packager: 'yarn'
+  webpackIncludeModules: true
+
 resources:
   Resources:
     S3BucketAcmeBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${file(.yaml):AWS_S3_ACME_BUCKET}
+        BucketName: ${file(.yaml):ACME_BUCKET}
+    DynamoDBAcmeTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${file(.yaml):ACME_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
     SNSCertificateTopic:
       Type: AWS::SNS::Topic
       Properties:
-        DisplayName: "NewLECertificateTopic"
+        DisplayName: "LE Cert"
 
 provider:
   name: aws
   runtime: nodejs6.10
   memorySize: 512
   timeout: 90 # Since it could take some time for the DNS changes to take effect we need to set an increased timeout
-  stage: dev
+  stage: ${opt:stage, "dev"}
   region: us-east-1
   iamRoleStatements:
     - Effect: "Allow"
       Action:
-        - s3:*
-      Resource: "*"
+        - s3:ListBucket
+      Resource:
+        Fn::Join:
+          - ""
+          - - "arn:aws:s3:::"
+            - Ref: S3BucketAcmeBucket
     - Effect: "Allow"
       Action:
-        - acm:*
-      Resource: "*"
+        - s3:PutObject
+        - s3:GetObject
+      Resource:
+        Fn::Join:
+          - ""
+          - - "arn:aws:s3:::"
+            - Ref: S3BucketAcmeBucket
+            - "/*"
     - Effect: "Allow"
       Action:
-        - sns:*
+        - acm:ImportCertificate
       Resource: "*"
-
-package:
-  exclude:
-    - .git/**
-    - .travis.yml
-    - .yaml
-    - yarn.lock
-    - node_modules/**/test/**
-    - node_modules/**/*.md
-    - node_modules/**/*.txt
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        Fn::GetAtt:
+          - DynamoDBAcmeTable
+          - Arn
+    - Effect: "Allow"
+      Action:
+        - sns:Publish
+      Resource:
+        Ref: SNSCertificateTopic
 
 functions:
   renew_certificate:
@@ -51,12 +90,12 @@ functions:
             description: "Checks if the Netlify managed domain needs an updated LetsEncrypt SSL certificate"
             rate: rate(1 day)
     environment:
-      NETLIFY_CLIENT_ID: ${file(.yaml):NETLIFY_CLIENT_ID}
-      NETLIFY_CLIENT_SECRET: ${file(.yaml):NETLIFY_CLIENT_SECRET}
+      NETLIFY_TOKEN: ${file(.yaml):NETLIFY_TOKEN}
       NETLIFY_DNS_ZONE_NAME: ${file(.yaml):NETLIFY_DNS_ZONE_NAME}
-      AWS_S3_ACME_BUCKET: ${file(.yaml):AWS_S3_ACME_BUCKET}
+      ACME_BUCKET: ${file(.yaml):ACME_BUCKET}
+      ACME_TABLE: ${file(.yaml):ACME_TABLE}
       AWS_SNS_TOPIC:
         Ref: SNSCertificateTopic
       ACME_EMAIL_ADDRESS: ${file(.yaml):ACME_EMAIL_ADDRESS}
-      ACME_DOMAIN_NAME: ${file(.yaml):ACME_DOMAIN_NAME}
+      ACME_DOMAIN_NAMES: ${file(.yaml):ACME_DOMAIN_NAMES}
       ACME_TEST: ${file(.yaml):ACME_TEST, "true"}

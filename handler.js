@@ -1,5 +1,18 @@
 'use strict'
 
+import moment from 'moment'
+import Pledge from 'bluebird'
+import le from 'letiny'
+
+import fs from './lib/fs-lib'
+import resolveTxt from './lib/dns-lib'
+
+import AWS from 'aws-sdk'
+import Table from './lib/dynamodb-lib'
+import Bucket from './lib/s3-lib'
+import NetlifyClient from './lib/netlify-lib'
+
+// Load in development variables
 if (process.env.NODE_ENV !== 'production') {
   require('dotyaml')()
 }
@@ -9,35 +22,22 @@ if (!process.env.AWS_REGION) {
   process.env.AWS_REGION = 'us-east-1'
 }
 
-const NETLIFY_CLIENT_ID = process.env.NETLIFY_CLIENT_ID
-const NETLIFY_CLIENT_SECRET = process.env.NETLIFY_CLIENT_SECRET
-const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME
+AWS.config.setPromisesDependency(Pledge)
+const acm = new AWS.ACM({region: process.env.AWS_REGION})
+const sns = new AWS.SNS({region: process.env.AWS_REGION})
 
-const AWS_S3_ACME_BUCKET = process.env.AWS_S3_ACME_BUCKET
+const NETLIFY_TOKEN = process.env.NETLIFY_TOKEN
+const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME
+const ACME_BUCKET = process.env.ACME_BUCKET
+const ACME_TABLE = process.env.ACME_TABLE
+const ACME_EMAIL_ADDRESS = process.env.ACME_EMAIL_ADDRESS
+const ACME_DOMAIN_NAMES = process.env.ACME_DOMAIN_NAMES.split(',')
+const ACME_TEST = process.env.ACME_TEST || true
 const AWS_SNS_TOPIC = process.env.AWS_SNS_TOPIC
 
-const ACME_EMAIL_ADDRESS = process.env.ACME_EMAIL_ADDRESS
-const ACME_DOMAIN_NAME = process.env.ACME_DOMAIN_NAME
-const ACME_TEST = process.env.ACME_TEST
-
-const fs = require('fs')
-const dns = require('dns')
-
-const AWS = require('aws-sdk')
-const Pledge = require('bluebird')
-AWS.config.setPromisesDependency(Pledge)
-
-const s3 = new AWS.S3()
-const acm = new AWS.ACM()
-const sns = new AWS.SNS()
-
-const moment = require('moment')
-const letiny = require('letiny')
-const request = require('request')
-const netlify = require('netlify').createClient({
-  client_id: NETLIFY_CLIENT_ID,
-  client_secret: NETLIFY_CLIENT_SECRET
-})
+const table = new Table(ACME_TABLE)
+const bucket = new Bucket(ACME_BUCKET)
+const netlify = new NetlifyClient(NETLIFY_TOKEN, NETLIFY_DNS_ZONE_NAME)
 
 const certFiles = [
   'cert.pem',
@@ -47,354 +47,222 @@ const certFiles = [
   'account.pem'
 ]
 
-function getBucketFile (bucket, file) {
-  let params = {
-    Bucket: bucket,
-    Key: file
-  }
-
-  return new Pledge((resolve, reject) => {
-    let headObject = s3.headObject(params).promise()
-    headObject
-      .then(data => {
-        let getObject = s3.getObject(params).promise()
-        getObject
-          .then(data => resolve(data.Body))
-          .catch(err => reject(err))
-      })
-      .catch(err => {
-        reject(err)
-      })
-  })
+function breakPromise () {
+  return Pledge.reject('break')
 }
 
-function putFile (bucket, fileName, fileData) {
-  let params = {
-    Bucket: bucket,
-    Key: fileName,
-    Body: fileData
-  }
-
-  return new Pledge((resolve, reject) => {
-    s3.putObject(params)
-      .promise()
-      .then(url => resolve(url))
-      .catch(err => reject(err))
-  })
-}
-
-function loadTempDirectoryFromBucket (bucket, files) {
-  return Pledge.all(
-    files.map(file => {
-      return new Pledge((resolve, reject) => {
-        getBucketFile(bucket, file)
-          .then(data => {
-            let f = '/tmp/' + file
-            fs.writeFile(f, data, 'utf8', err => {
-              if (err) {
-                reject(err)
-              } else {
-                resolve(null)
-              }
-            })
-          })
-          .catch(err => {
-            if (err && err.code === 'NotFound') {
-              resolve(null)
-            } else {
-              reject(err)
-            }
-          })
-      })
-    })
-  )
-}
-
-function dumpTempDirectoryToBucket (bucket, files) {
-  return Pledge.all(
-    files.map(file => {
-      return new Pledge((resolve, reject) => {
-        let f = '/tmp/' + file
-        fs.stat(f, (err, stats) => {
-          if (!err && stats.isFile()) {
-            fs.readFile(f, (err, data) => {
-              if (err) {
-                reject(err)
-              } else {
-                putFile(bucket, file, data)
-                  .then(url => resolve(null))
-                  .catch(err => reject(err))
-              }
-            })
-          } else {
-            resolve(null)
-          }
-        })
-      })
-    })
-  )
-}
-
-function cleanupTempDirectory (files) {
-  return Pledge.all(
-    files.map(file => {
-      return new Pledge((resolve, reject) => {
-        let f = '/tmp/' + file
-        fs.stat(f, (err, stats) => {
-          if (!err && stats.isFile()) {
-            fs.unlink(f, err => {
-              if (err) {
-                reject(err)
-              } else {
-                resolve(null)
-              }
-            })
-          } else {
-            resolve(null)
-          }
-        })
-      })
-    })
-  )
-}
-
-function removeZoneRecord (token, zoneId, recordId) {
-  return new Pledge((resolve, reject) => {
-    let uri =
-      'https://api.netlify.com/api/v1/dns_zones/' +
-      zoneId +
-      '/dns_records/' +
-      recordId
-
-    request.delete(
-      uri,
-      {
-        headers: {
-          Authorization: 'Bearer ' + token
-        }
-      },
-      (err, resp, body) => {
-        if (err) {
-          reject(err)
-        } else {
-          if (resp.statusCode >= 200 && resp.statusCode < 300) {
-            resolve(resp.statusCode)
-          } else {
-            reject(resp.statusMessage)
-          }
-        }
-      }
-    )
-  })
-}
-
-function wait (timeout) {
+function checkExpirationDate (record) {
+  console.log('Checking if certificate needs to be renewed', record)
   return new Pledge(resolve => {
-    setTimeout(() => {
-      resolve()
-    }, timeout)
+    if (record === undefined || !record.Item || !record.Item.expirationDate) {
+      // treat a null record as needing to establish a new cert
+      return resolve(true)
+    }
+
+    const expirationDate = new Date(record.Item.expirationDate)
+    const renewalDate = moment(expirationDate).subtract(14, 'days')
+    const today = moment(new Date())
+
+    return resolve(today.isSameOrAfter(renewalDate))
   })
 }
 
-function resolveTxtRecord (endpoint) {
+function renewCertificate (domain) {
+  console.log(`Renewing certificate for ${domain}`)
   return new Pledge((resolve, reject) => {
-    console.log('Attempting to resolve TXT', endpoint)
-    dns.resolveTxt(endpoint, (err, data) => {
-      if (err && err.code === dns.NOTFOUND) {
-        console.log('Waiting', 1000, 'ms')
-        wait(1000).then(() => {
-          resolveTxtRecord(endpoint)
-            .then(data => resolve(data))
-            .catch(err => reject(err))
-        })
-      } else if (err) {
-        console.log('Error resolving TXT', endpoint, err)
-        reject(err)
-      } else {
-        console.log('Resolved TXT', endpoint)
-        resolve(data)
-      }
-    })
-  })
-}
-
-function checkCertificateRenewal (cert) {
-  return new Pledge((resolve, reject) => {
-    fs.stat(cert, (err, stats) => {
-      if (!err && stats.isFile()) {
-        fs.readFile(cert, 'utf8', (err, data) => {
-          if (err) {
-            reject(err)
-          } else {
-            try {
-              let expirationDate = letiny.getExpirationDate(data)
-              let renewalDate = moment(expirationDate).subtract(30, 'days')
-              let today = moment(new Date())
-
-              resolve({
-                renew: today.isSameOrAfter(renewalDate),
-                expirationDate: expirationDate
-              })
-            } catch (err) {
-              reject(err)
-            }
-          }
-        })
-      } else {
-        resolve({ renew: true })
-      }
-    })
-  })
-}
-
-function renewCertificate (zone) {
-  return new Pledge((resolve, reject) => {
-    let recordId = null
-    letiny.getCert(
-      {
-        email: ACME_EMAIL_ADDRESS,
-        domains: ACME_DOMAIN_NAME,
-        certFile: '/tmp/cert.pem',
-        keyFile: '/tmp/privkey.pem',
-        caFile: '/tmp/cacert.pem',
-        privateKey: '/tmp/accountkey.pem',
-        accountKey: '/tmp/account.pem',
-        agreeTerms: true,
-        method: 'dns-01',
-        url:
+    le.getCert({
+      email: ACME_EMAIL_ADDRESS,
+      domains: domain,
+      certFile: `/tmp/${domain}/cert.pem`,
+      keyFile: `/tmp/${domain}/privkey.pem`,
+      caFile: `/tmp/${domain}/cacert.pem`,
+      privateKey: `/tmp/${domain}/accountkey.pem`,
+      accountKey: `/tmp/${domain}/account.pem`,
+      agreeTerms: true,
+      method: 'dns-01',
+      url:
           ACME_TEST === 'true'
             ? 'https://acme-staging.api.letsencrypt.org'
             : 'https://acme-v01.api.letsencrypt.org/',
-        challenge: function (domain, _, data, done) {
-          let endpoint = '_acme-challenge.' + domain
-          zone
-            .createRecord({
-              hostname: endpoint,
-              type: 'TXT',
-              value: data,
-              ttl: 30
-            })
-            .then(record => {
-              recordId = record.id
-
-              resolveTxtRecord(endpoint).then(() => done(null)).catch(err => {
-                done(err)
-              })
-            })
-            .catch(err => {
-              done(err)
-            })
-        }
-      },
-      (err, cert, privKey, caCert, accountKey) => {
-        if (err) {
-          reject(err)
-        } else {
-          var params = {
-            Certificate: cert,
-            PrivateKey: privKey,
-            CertificateChain: caCert
-          }
-
-          acm
-            .importCertificate(params)
-            .promise()
-            .then(data => resolve({ arn: data, record: recordId }))
-            .catch(err => reject(err))
-        }
+      challenge: function (endpoint, _, data, done) {
+        console.log(`Generating certificate challenge for ${domain}`)
+        const url = '_acme-challenge.' + endpoint
+        netlify.createRecord({
+          hostname: url,
+          type: 'TXT',
+          value: data,
+          ttl: 30
+        })
+          .then(record => {
+            resolveTxt(record.hostname)
+              .then(() => done())
+              .catch(err => reject(err))
+          })
+          .catch(err => reject(err))
       }
-    )
+    }, (err, cert, privateKey, caCert, accountKey) => {
+      if (err) {
+        return reject(err)
+      }
+
+      console.log(`Received new certificate for ${domain}`)
+      var params = {
+        Certificate: cert,
+        PrivateKey: privateKey,
+        CertificateChain: caCert
+      }
+
+      return resolve(params)
+    })
   })
 }
 
+function loadCertificates (domain) {
+  console.log(`Loading cached certificates for ${domain} from S3`)
+  const baseBucket = `${domain}`
+  const tmpDir = `/tmp/${domain}`
+
+  fs.mkdir(tmpDir)
+    .catch(err => Pledge.reject(err))
+    .then(() => {
+      return Pledge.all(certFiles.map(file => {
+        return new Pledge((resolve, reject) => {
+          const bucketKey = `${baseBucket}/${file}`
+          const tmpFile = `${tmpDir}/${file}`
+
+          bucket.getFile(bucketKey)
+            .then(data => {
+              fs.write(tmpFile, data)
+                .then(() => resolve())
+                .catch(err => reject(err))
+            })
+            .catch(err => {
+              if (err && (err.code === 'NoSuchKey' || err.code === 'NotFound')) {
+                return resolve()
+              }
+
+              return reject(err)
+            })
+        })
+      }))
+    })
+}
+
+function copyCertificates (domain) {
+  console.log(`Moving locally cached certificates for ${domain} to S3`)
+  const baseBucket = `${domain}`
+  const tmpDir = `/tmp/${domain}`
+
+  return Pledge.all(certFiles.map(file => {
+    return new Pledge((resolve, reject) => {
+      const bucketKey = `${baseBucket}/${file}`
+      const tmpFile = `${tmpDir}/${file}`
+
+      fs.exists(tmpFile)
+        .then(exists => {
+          if (!exists) {
+            return resolve()
+          }
+
+          fs.read(tmpFile)
+            .then(data => {
+              bucket.putFile(bucketKey, data)
+                .then(() => resolve())
+                .catch(err => reject(err))
+            })
+            .catch(err => reject(err))
+        })
+        .catch(err => reject(err))
+    })
+  }))
+}
+
+function unloadCertificates (domain) {
+  console.log(`Removing locally cached certificates for ${domain}`)
+  const tmpDir = `/tmp/${domain}`
+
+  return Pledge.all(certFiles.map(file => {
+    return new Pledge((resolve, reject) => {
+      const tmpFile = `${tmpDir}/${file}`
+
+      fs.exists(tmpFile)
+        .then(exists => {
+          if (!exists) {
+            return resolve()
+          }
+
+          fs.delete(tmpFile)
+            .then(() => resolve())
+            .catch(err => reject(err))
+        })
+        .catch(err => reject(err))
+    })
+  }))
+    .then(() => fs.rmdir(tmpDir))
+    .catch(err => {
+      fs.rmdir(tmpDir)
+        .then(() => Pledge.reject(err))
+        .catch(err => Pledge.reject(err))
+    })
+}
+
 module.exports.renew_certificate = (event, context, callback) => {
-  let renew = new Pledge((resolve, reject) => {
-    netlify
-      .authorizeFromCredentials()
-      .then(token => {
-        netlify
-          .dnsZones()
-          .then(zones => {
-            netlify
-              .dnsZone(
-                zones.find(zone => zone.name === NETLIFY_DNS_ZONE_NAME).id
-              )
-              .then(zone => {
-                loadTempDirectoryFromBucket(
-                  AWS_S3_ACME_BUCKET,
-                  certFiles
-                ).then(() => {
-                  checkCertificateRenewal('/tmp/cert.pem')
-                    .then(results => {
-                      if (results.renew) {
-                        renewCertificate(zone)
-                          .then(data => {
-                            removeZoneRecord(
-                              token,
-                              zone.id,
-                              data.record
-                            ).catch(err => console.log('ERROR', err))
+  ACME_DOMAIN_NAMES.forEach(domain => {
+    table.getItem(domain)
+      .then(record => checkExpirationDate(record))
+      .then(renew => {
+        if (!renew) {
+          console.log(`${domain} doesn't need to be renewed at this time`)
+          return breakPromise()
+        }
 
-                            dumpTempDirectoryToBucket(
-                              AWS_S3_ACME_BUCKET,
-                              certFiles
-                            )
-                              .then(() => {
-                                cleanupTempDirectory(certFiles).catch(err =>
-                                  console.log('ERROR', err)
-                                )
-
-                                let params = {
-                                  Message: `${data.arn.CertificateArn}`,
-                                  TopicArn: AWS_SNS_TOPIC
-                                }
-
-                                sns.publish(params).promise()
-                                  .catch(err => console.log('ERROR', err))
-                                  .finally(() => resolve(
-                                    'Certificate generated and uploaded to AWS'
-                                  ))
-                              })
-                              .catch(err => {
-                                console.log('ERROR', err)
-                                cleanupTempDirectory(certFiles)
-                                  .catch(err => console.log('ERROR', err))
-                                  .finally(() => reject(err))
-                              })
-                          })
-                          .catch(err => {
-                            console.log('ERROR', err)
-
-                            cleanupTempDirectory(certFiles)
-                              .catch(err => console.log('ERROR', err))
-                              .finally(() => reject(err))
-                          })
-                      } else {
-                        cleanupTempDirectory(certFiles)
-                          .catch(err => console.log('ERROR', err))
-                          .finally(() =>
-                            resolve(
-                              'Certificate expires on ' + results.expirationDate
-                            )
-                          )
-                      }
-                    })
-                    .catch(err => {
-                      console.log('ERROR', err)
-
-                      cleanupTempDirectory(certFiles)
-                        .catch(err => console.log('ERROR', err))
-                        .finally(() => reject(err))
-                    })
-                })
-              })
-          })
-          .catch(err => reject(err))
+        return loadCertificates(domain)
       })
-      .catch(err => reject(err))
-  })
+      .then(() => {
+        return renewCertificate(domain)
+      })
+      .then(certificate => {
+        console.log(`Uploading ${domain} certificate to Certificate Manager`)
+        return acm.importCertificate(certificate).promise()
+      })
+      .then(data => {
+        const params = {
+          Message: data.CertificateArn || JSON.stringify(data),
+          TopicArn: AWS_SNS_TOPIC
+        }
 
-  renew
-    .then(status => callback(null, status))
-    .catch(err => callback(err, 'ERROR'))
+        console.log(`Publishing new ${domain} certificate Arn to ${AWS_SNS_TOPIC}`)
+        return Pledge.all([
+          table.putItem({
+            id: domain,
+            expirationDate: moment(new Date()).add(90, 'days').valueOf(),
+            certificateArn: data.CertificateArn
+          }),
+          sns.publish(params).promise()
+        ])
+      })
+      .then(() => copyCertificates(domain))
+      .then(() => unloadCertificates(domain))
+      .then(() => {
+        console.log(`Clearing DNS challenge record for ${domain}`)
+        return netlify.getRecordsByHostname('_acme-challenge.' + domain)
+          .then(records => {
+            return Pledge.all(records.map(record => {
+              return netlify.deleteRecord(record)
+            }))
+          })
+      })
+      .catch(err => {
+        if (err !== 'break') {
+          console.log(err)
+        }
+      })
+      .finally(() => {
+        // Sanity check in case we got here after an error
+        console.log(`Performing cleanup of ${domain}`)
+        unloadCertificates(domain)
+          .catch(err => console.log(`Could not delete local cache for ${domain}\n`, err))
+          .finally(() => console.log(`Finished handling ${domain}`))
+      })
+  })
 }
