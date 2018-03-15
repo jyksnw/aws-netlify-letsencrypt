@@ -259,7 +259,10 @@ module.exports.renew_certificate = (event, context, callback) => {
           .finally(() => {
             unloadCertificates(domain)
               .catch(err => console.log(`Could not delete local cache for ${domain}\n`, err))
-              .finally(() => console.log(`Finished handling ${domain}`))
+              .finally(() => {
+                console.log(`Finished handling ${domain}`)
+                callback(null, 'Finished')
+              })
           })
       })
   })
