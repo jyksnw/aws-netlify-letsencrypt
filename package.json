@@ -6,6 +6,7 @@
   "dependencies": {
     "aws-sdk": "^2.206.0",
     "axios": "^0.18.0",
+    "babel-runtime": "^6.26.0",
     "bluebird": "^3.5.1",
     "dotyaml": "^1.0.0",
     "letiny": "https://github.com/anatolsommer/letiny.git",
