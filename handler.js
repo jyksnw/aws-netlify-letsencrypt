@@ -23,8 +23,8 @@ if (!process.env.AWS_REGION) {
 }
 
 AWS.config.setPromisesDependency(Pledge)
-const acm = new AWS.ACM({region: process.env.AWS_REGION})
-const sns = new AWS.SNS({region: process.env.AWS_REGION})
+const acm = new AWS.ACM({ region: process.env.AWS_REGION })
+const sns = new AWS.SNS({ region: process.env.AWS_REGION })
 
 const NETLIFY_TOKEN = process.env.NETLIFY_TOKEN
 const NETLIFY_DNS_ZONE_NAME = process.env.NETLIFY_DNS_ZONE_NAME
@@ -70,50 +70,54 @@ function checkExpirationDate (record) {
 function renewCertificate (domain) {
   console.log(`Renewing certificate for ${domain}`)
   return new Pledge((resolve, reject) => {
-    le.getCert({
-      email: ACME_EMAIL_ADDRESS,
-      domains: domain,
-      certFile: `/tmp/${domain}/cert.pem`,
-      keyFile: `/tmp/${domain}/privkey.pem`,
-      caFile: `/tmp/${domain}/cacert.pem`,
-      privateKey: `/tmp/${domain}/accountkey.pem`,
-      accountKey: `/tmp/${domain}/account.pem`,
-      agreeTerms: true,
-      method: 'dns-01',
-      url:
+    le.getCert(
+      {
+        email: ACME_EMAIL_ADDRESS,
+        domains: domain,
+        certFile: `/tmp/${domain}/cert.pem`,
+        keyFile: `/tmp/${domain}/privkey.pem`,
+        caFile: `/tmp/${domain}/cacert.pem`,
+        privateKey: `/tmp/${domain}/accountkey.pem`,
+        accountKey: `/tmp/${domain}/account.pem`,
+        agreeTerms: true,
+        method: 'dns-01',
+        url:
           ACME_TEST === 'true'
             ? 'https://acme-staging.api.letsencrypt.org'
             : 'https://acme-v01.api.letsencrypt.org/',
-      challenge: function (endpoint, _, data, done) {
-        console.log(`Generating certificate challenge for ${domain}`)
-        const url = '_acme-challenge.' + endpoint
-        netlify.createRecord({
-          hostname: url,
-          type: 'TXT',
-          value: data,
-          ttl: 30
-        })
-          .then(record => {
-            resolveTxt(record.hostname)
-              .then(() => done())
-              .catch(err => reject(err))
-          })
-          .catch(err => reject(err))
-      }
-    }, (err, cert, privateKey, caCert, accountKey) => {
-      if (err) {
-        return reject(err)
-      }
+        challenge: function (endpoint, _, data, done) {
+          console.log(`Generating certificate challenge for ${domain}`)
+          const url = '_acme-challenge.' + endpoint
+          netlify
+            .createRecord({
+              hostname: url,
+              type: 'TXT',
+              value: data,
+              ttl: 30
+            })
+            .then(record => {
+              resolveTxt(record.hostname)
+                .then(() => done())
+                .catch(err => reject(err))
+            })
+            .catch(err => reject(err))
+        }
+      },
+      (err, cert, privateKey, caCert, accountKey) => {
+        if (err) {
+          return reject(err)
+        }
 
-      console.log(`Received new certificate for ${domain}`)
-      var params = {
-        Certificate: cert,
-        PrivateKey: privateKey,
-        CertificateChain: caCert
-      }
+        console.log(`Received new certificate for ${domain}`)
+        var params = {
+          Certificate: cert,
+          PrivateKey: privateKey,
+          CertificateChain: caCert
+        }
 
-      return resolve(params)
-    })
+        return resolve(params)
+      }
+    )
   })
 }
 
@@ -122,15 +126,15 @@ function loadCertificates (domain) {
   const baseBucket = `${domain}`
   const tmpDir = `/tmp/${domain}`
 
-  fs.mkdir(tmpDir)
-    .catch(err => Pledge.reject(err))
-    .then(() => {
-      return Pledge.all(certFiles.map(file => {
+  fs.mkdir(tmpDir).catch(err => Pledge.reject(err)).then(() => {
+    return Pledge.all(
+      certFiles.map(file => {
         return new Pledge((resolve, reject) => {
           const bucketKey = `${baseBucket}/${file}`
           const tmpFile = `${tmpDir}/${file}`
 
-          bucket.getFile(bucketKey)
+          bucket
+            .getFile(bucketKey)
             .then(data => {
               fs.write(tmpFile, data)
                 .then(() => resolve())
@@ -144,8 +148,9 @@ function loadCertificates (domain) {
               return reject(err)
             })
         })
-      }))
-    })
+      })
+    )
+  })
 }
 
 function copyCertificates (domain) {
@@ -153,51 +158,54 @@ function copyCertificates (domain) {
   const baseBucket = `${domain}`
   const tmpDir = `/tmp/${domain}`
 
-  return Pledge.all(certFiles.map(file => {
-    return new Pledge((resolve, reject) => {
-      const bucketKey = `${baseBucket}/${file}`
-      const tmpFile = `${tmpDir}/${file}`
+  return Pledge.all(
+    certFiles.map(file => {
+      return new Pledge((resolve, reject) => {
+        const bucketKey = `${baseBucket}/${file}`
+        const tmpFile = `${tmpDir}/${file}`
 
-      fs.exists(tmpFile)
-        .then(exists => {
-          if (!exists) {
-            return resolve()
-          }
+        fs.exists(tmpFile)
+          .then(exists => {
+            if (!exists) {
+              return resolve()
+            }
 
-          fs.read(tmpFile)
-            .then(data => {
-              bucket.putFile(bucketKey, data)
-                .then(() => resolve())
-                .catch(err => reject(err))
-            })
-            .catch(err => reject(err))
-        })
-        .catch(err => reject(err))
+            fs.read(tmpFile)
+              .then(data => {
+                bucket
+                  .putFile(bucketKey, data)
+                  .then(() => resolve())
+                  .catch(err => reject(err))
+              })
+              .catch(err => reject(err))
+          })
+          .catch(err => reject(err))
+      })
     })
-  }))
+  )
 }
 
 function unloadCertificates (domain) {
   console.log(`Removing locally cached certificates for ${domain}`)
   const tmpDir = `/tmp/${domain}`
 
-  return Pledge.all(certFiles.map(file => {
-    return new Pledge((resolve, reject) => {
-      const tmpFile = `${tmpDir}/${file}`
+  return Pledge.all(
+    certFiles.map(file => {
+      return new Pledge((resolve, reject) => {
+        const tmpFile = `${tmpDir}/${file}`
 
-      fs.exists(tmpFile)
-        .then(exists => {
-          if (!exists) {
-            return resolve()
-          }
+        fs.exists(tmpFile)
+          .then(exists => {
+            if (!exists) {
+              return resolve()
+            }
 
-          fs.delete(tmpFile)
-            .then(() => resolve())
-            .catch(err => reject(err))
-        })
-        .catch(err => reject(err))
+            fs.delete(tmpFile).then(() => resolve()).catch(err => reject(err))
+          })
+          .catch(err => reject(err))
+      })
     })
-  }))
+  )
     .then(() => fs.rmdir(tmpDir))
     .catch(err => {
       fs.rmdir(tmpDir)
@@ -207,7 +215,7 @@ function unloadCertificates (domain) {
 }
 
 module.exports.renew_certificate = (event, context, callback) => {
-  ACME_DOMAIN_NAMES.forEach(domain => {
+  Pledge.all(ACME_DOMAIN_NAMES.map(domain => {
     table.getItem(domain)
       .then(record => checkExpirationDate(record))
       .then(renew => {
@@ -225,7 +233,10 @@ module.exports.renew_certificate = (event, context, callback) => {
       })
       .then(data => {
         const params = {
-          Message: data.CertificateArn || JSON.stringify(data),
+          Message: JSON.stringify({
+            domain: domain,
+            arn: data.CertificateArn || JSON.stringify(data)
+          }),
           TopicArn: AWS_SNS_TOPIC
         }
 
@@ -251,19 +262,27 @@ module.exports.renew_certificate = (event, context, callback) => {
         netlify.getRecordsByHostname('_acme-challenge.' + domain)
           .then(records => {
             console.log(`Clearing DNS challenge record for ${domain}`)
-            return Pledge.all(records.map(record => {
-              return netlify.deleteRecord(record)
-            }))
+            return Pledge.all(
+              records.map(record => {
+                return netlify.deleteRecord(record)
+              })
+            )
           })
-          .catch(err => console.log(`Could not remove DNS challange records for ${domain}\n`, err))
+          .catch(err =>
+            console.log(`Could not remove DNS challange records for ${domain}\n`, err)
+          )
           .finally(() => {
             unloadCertificates(domain)
-              .catch(err => console.log(`Could not delete local cache for ${domain}\n`, err))
+              .catch(err =>
+                console.log(`Could not delete local cache for ${domain}\n`, err)
+              )
               .finally(() => {
                 console.log(`Finished handling ${domain}`)
-                callback(null, 'Finished')
+                return Pledge.resolve()
               })
           })
       })
-  })
+  }))
+    .then(() => callback(null, 'Complete'))
+    .catch(err => callback(err, null))
 }
