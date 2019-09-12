@@ -5,12 +5,13 @@
   "license": "MIT",
   "dependencies": {
     "aws-sdk": "^2.206.0",
-    "axios": "^0.18.0",
+    "axios": "^0.18.1",
     "babel-runtime": "^6.26.0",
     "bluebird": "^3.5.1",
     "dotyaml": "^1.0.0",
     "letiny": "https://github.com/anatolsommer/letiny.git",
-    "moment": "^2.21.0"
+    "moment": "^2.21.0",
+    "snyk": "^1.226.2"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
@@ -27,7 +28,6 @@
     "eslint-plugin-standard": "^3.0.1",
     "husky": "^0.15.0-rc.8",
     "serverless-webpack": "^5.0.0",
-    "snyk": "^1.69.11",
     "standard": "^11.0.0",
     "webpack": "^4.1.1",
     "webpack-node-externals": "^1.6.0"
