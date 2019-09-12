@@ -1,9 +1,16 @@
 # Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
-version: v1.10.2
+version: v1.13.5
 # ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
   'npm:node-forge:20180226':
     - letiny > node-forge:
         reason: None given
         expires: '2018-04-09T01:59:35.515Z'
-patch: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  'npm:extend:20180424':
+    - letiny > request > extend:
+        patched: '2019-09-12T05:51:50.275Z'
+  'npm:stringstream:20180511':
+    - letiny > request > stringstream:
+        patched: '2019-09-12T05:51:50.275Z'
